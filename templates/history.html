@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+    <h2>History</h2>
+    <form method="get" action="{{ url_for('history') }}" class="inline-form">
+        <label>
+            Media
+            <select name="media">
+                <option value="ALL" {% if media_filter == "ALL" %}selected{% endif %}>ALL</option>
+                {% for media in media_values %}
+                    <option value="{{ media }}" {% if media_filter == media %}selected{% endif %}>{{ media }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit" class="btn secondary">Apply Filter</button>
+    </form>
+
+    {% if events %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>Title</th>
+                        <th>Media</th>
+                        <th>Event</th>
+                        <th>Status</th>
+                        <th>Snapshot</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                        <tr>
+                            <td>{{ event.created_at | dt }}</td>
+                            <td>{{ event.entry.series.title }}</td>
+                            <td>{{ event.entry.series.media_type.value }}</td>
+                            <td>{{ event.event_type.value }}</td>
+                            <td>
+                                {% if event.old_status or event.new_status %}
+                                    {{ event.old_status.value if event.old_status else "-" }} -> {{ event.new_status.value if event.new_status else "-" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.volume is not none %}Vol {{ event.volume }} {% endif %}
+                                {% if event.episode is not none %}Ep {{ event.episode }}{% endif %}
+                                {% if event.volume is none and event.episode is none %}-{% endif %}
+                            </td>
+                            <td>{{ event.details or "-" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No history events found.</p>
+    {% endif %}
+</section>
+{% endblock %}

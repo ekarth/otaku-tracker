@@ -330,7 +330,13 @@ def datetime_filter(value: datetime | None) -> str:
 
 @app.get("/")
 def home():
-    return render_template("home.html")
+    return render_template(
+        "home.html",
+        media_values=[m.value for m in MediaType],
+        status_values=[s.value for s in ListStatus],
+        add_book_types=[b.value for b in BookType if b != BookType.N_A],
+        publication_values=[p.value for p in PublicationStatus],
+    )
 
 
 @app.get("/readlist")
@@ -346,20 +352,13 @@ def index():
 
     entries = query.order_by(ReadlistEntry.updated_at.desc()).all()
 
-    preview_query = HistoryEvent.query.join(ReadlistEntry).join(Series)
-    if media_filter in MediaType.__members__:
-        preview_query = preview_query.filter(Series.media_type == MediaType[media_filter])
-    history_preview = preview_query.order_by(HistoryEvent.created_at.desc()).limit(12).all()
-
     return render_template(
         "index.html",
         entries=entries,
-        history_preview=history_preview,
         media_filter=media_filter,
         status_filter=status_filter,
         media_values=[m.value for m in MediaType],
         status_values=[s.value for s in ListStatus],
-        add_book_types=[b.value for b in BookType if b != BookType.N_A],
         publication_values=[p.value for p in PublicationStatus],
     )
 
@@ -370,19 +369,19 @@ def add_entry():
     english_title = (request.form.get("english_title") or "").strip() or None
     if not japanese_title and not english_title:
         flash("Provide at least one title (Japanese or English).", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
 
     media_raw = (request.form.get("media_type") or "").upper()
     if media_raw not in MediaType.__members__:
         flash("Invalid media type.", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
     media_type = MediaType[media_raw]
 
     if media_type == MediaType.BOOK:
         book_raw = (request.form.get("book_type") or "").upper()
         if book_raw not in BookType.__members__ or book_raw == BookType.N_A.value:
             flash("Choose MANGA, MANHWA, or LIGHT_NOVEL for books.", "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("home"))
         book_type = BookType[book_raw]
     else:
         book_type = BookType.N_A
@@ -413,7 +412,7 @@ def add_entry():
     )
     if invalid_message:
         flash(invalid_message, "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
 
     series_query = Series.query.filter_by(media_type=media_type, book_type=book_type)
     if japanese_title and english_title:
@@ -459,7 +458,7 @@ def add_entry():
     if ReadlistEntry.query.filter_by(series_id=series.id).first() is not None:
         flash("This series is already in your tracker.", "error")
         db.session.rollback()
-        return redirect(url_for("index"))
+        return redirect(url_for("home"))
 
     status_raw = (request.form.get("list_status") or "PLANNED").upper()
     list_status = ListStatus[status_raw] if status_raw in ListStatus.__members__ else ListStatus.PLANNED
@@ -508,7 +507,7 @@ def add_entry():
         db.session.rollback()
         flash("Failed to save entry.", "error")
 
-    return redirect(url_for("index"))
+    return redirect(url_for("home"))
 
 
 @app.post("/entry/<int:entry_id>/update")

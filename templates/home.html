@@ -9,4 +9,128 @@
         <a href="{{ url_for('history') }}" class="btn secondary">View History</a>
     </div>
 </section>
+
+<section class="panel">
+    <h2>Add To Tracker</h2>
+    <form method="post" action="{{ url_for('add_entry') }}" class="grid-form" id="add-form">
+        <label>
+            Japanese Title
+            <input type="text" name="japanese_title" maxlength="255">
+        </label>
+        <label>
+            English Title
+            <input type="text" name="english_title" maxlength="255">
+        </label>
+        <label>
+            Media
+            <select name="media_type" id="media_type" required>
+                {% for media in media_values %}
+                    <option value="{{ media }}">{{ media }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label id="book_type_wrap">
+            Book Type
+            <select name="book_type">
+                {% for book_type in add_book_types %}
+                    <option value="{{ book_type }}">{{ book_type }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Release Status
+            <select name="publication_status">
+                {% for publication in publication_values %}
+                    <option value="{{ publication }}">{{ publication }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            List Status
+            <select name="list_status">
+                {% for status in status_values %}
+                    <option value="{{ status }}">{{ status }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="checkbox">
+            <input type="checkbox" name="prefer_download" checked>
+            Prefer downloaded copies
+        </label>
+        <label class="media-field volume-only">
+            Latest Volume
+            <input type="number" min="0" name="latest_volume">
+        </label>
+        <label class="media-field episode-only">
+            Latest Episode
+            <input type="number" min="0" name="latest_episode">
+        </label>
+        <label class="media-field episode-only">
+            Seasons Aired
+            <input type="number" min="0" name="seasons_aired">
+        </label>
+        <label class="media-field volume-only">
+            Current Volume
+            <input type="number" min="0" name="current_volume">
+        </label>
+        <label class="media-field episode-only">
+            Current Episode
+            <input type="number" min="0" name="current_episode">
+        </label>
+        <label class="media-field episode-only">
+            Seasons Watched
+            <input type="number" min="0" name="seasons_watched">
+        </label>
+        <label class="media-field volume-only">
+            Downloaded Volume Upto
+            <input type="number" min="0" name="downloaded_volume_upto">
+        </label>
+        <label class="media-field episode-only">
+            Downloaded Episode Upto
+            <input type="number" min="0" name="downloaded_episode_upto">
+        </label>
+        <label>
+            Start Date
+            <input type="date" name="start_date">
+        </label>
+        <label>
+            Finish Date
+            <input type="date" name="finish_date">
+        </label>
+        <label class="full">
+            Notes
+            <textarea name="notes" rows="2"></textarea>
+        </label>
+        <button type="submit" class="btn">Add Entry</button>
+    </form>
+</section>
+
+<script>
+    const mediaField = document.getElementById("media_type");
+    const bookTypeWrap = document.getElementById("book_type_wrap");
+    const mediaFields = document.querySelectorAll(".media-field");
+
+    function syncAddFormVisibility() {
+        const isBook = mediaField.value === "BOOK";
+        bookTypeWrap.style.display = isBook ? "grid" : "none";
+
+        const bookTypeSelect = bookTypeWrap.querySelector("select");
+        bookTypeSelect.disabled = !isBook;
+
+        mediaFields.forEach((field) => {
+            const volumeOnly = field.classList.contains("volume-only");
+            const episodeOnly = field.classList.contains("episode-only");
+            const shouldShow = (isBook && volumeOnly) || (!isBook && episodeOnly);
+
+            field.style.display = shouldShow ? "grid" : "none";
+            const input = field.querySelector("input, select");
+            if (input) {
+                input.disabled = !shouldShow;
+            }
+        });
+    }
+
+    mediaField.addEventListener("change", syncAddFormVisibility);
+    syncAddFormVisibility();
+</script>
 {% endblock %}

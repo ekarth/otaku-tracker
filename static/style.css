@@ -1,13 +1,33 @@
 :root {
     --bg: #f3f6fa;
+    --bg-gradient-top: #e9f0f8;
     --panel: #ffffff;
     --text: #1f2933;
     --muted: #5b6b7a;
     --border: #d7e0ea;
     --brand: #1d4e89;
     --brand-soft: #e6f0fb;
+    --chip-text: #17406f;
+    --input-bg: #ffffff;
+    --history-bg: #fcfeff;
     --success: #1b7f4a;
     --error: #a12424;
+}
+
+[data-theme="dark"] {
+    --bg: #0f1720;
+    --bg-gradient-top: #0b131d;
+    --panel: #172330;
+    --text: #dbe8f6;
+    --muted: #9fb2c7;
+    --border: #2a3b4d;
+    --brand: #6eb1ff;
+    --brand-soft: #1f3144;
+    --chip-text: #cfe5ff;
+    --input-bg: #1a2a3a;
+    --history-bg: #15212d;
+    --success: #5dc086;
+    --error: #ff8f8f;
 }
 
 * {
@@ -17,7 +37,7 @@
 body {
     margin: 0;
     font-family: "Segoe UI", Tahoma, sans-serif;
-    background: linear-gradient(180deg, #e9f0f8 0%, var(--bg) 40%);
+    background: linear-gradient(180deg, var(--bg-gradient-top) 0%, var(--bg) 40%);
     color: var(--text);
 }
 
@@ -37,6 +57,7 @@ body {
 
 .topbar nav {
     display: flex;
+    align-items: center;
     gap: 0.8rem;
 }
 
@@ -44,6 +65,41 @@ body {
     text-decoration: none;
     color: var(--brand);
     font-weight: 600;
+}
+
+.theme-toggle {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--brand);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.05rem;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+    transform: translateY(-1px);
+}
+
+.theme-toggle .theme-icon {
+    position: absolute;
+    display: none;
+    line-height: 1;
+}
+
+[data-theme="light"] .theme-toggle .theme-icon-moon {
+    display: inline-block;
+}
+
+[data-theme="dark"] .theme-toggle .theme-icon-sun {
+    display: inline-block;
 }
 
 .container {
@@ -121,7 +177,7 @@ textarea {
     border-radius: 8px;
     padding: 0.45rem 0.55rem;
     color: var(--text);
-    background: #fff;
+    background: var(--input-bg);
 }
 
 textarea {
@@ -195,7 +251,7 @@ thead th {
 
 .chips span {
     background: var(--brand-soft);
-    color: #17406f;
+    color: var(--chip-text);
     font-size: 0.75rem;
     border-radius: 100px;
     padding: 0.14rem 0.45rem;
@@ -230,7 +286,7 @@ thead th {
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 0.6rem;
-    background: #fcfeff;
+    background: var(--history-bg);
 }
 
 .history-list p {

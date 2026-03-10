@@ -4,6 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Otaku Tracker</title>
+    <script>
+        (function () {
+            const stored = localStorage.getItem("theme_mode");
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            const theme = stored || (prefersDark ? "dark" : "light");
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -13,6 +21,16 @@
             <a href="{{ url_for('home') }}">Home</a>
             <a href="{{ url_for('index') }}">Readlist</a>
             <a href="{{ url_for('history') }}">History</a>
+            <button
+                type="button"
+                id="theme-toggle"
+                class="theme-toggle"
+                aria-label="Switch to dark mode"
+                title="Switch to dark mode"
+            >
+                <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+                <span class="theme-icon theme-icon-moon" aria-hidden="true">🌙</span>
+            </button>
         </nav>
     </header>
 
@@ -28,5 +46,31 @@
         {% endwith %}
         {% block content %}{% endblock %}
     </main>
+    <script>
+        (function () {
+            const button = document.getElementById("theme-toggle");
+            const root = document.documentElement;
+            if (!button) {
+                return;
+            }
+
+            function updateButtonLabel() {
+                const isDark = root.getAttribute("data-theme") === "dark";
+                const label = isDark ? "Switch to light mode" : "Switch to dark mode";
+                button.setAttribute("aria-label", label);
+                button.setAttribute("title", label);
+            }
+
+            button.addEventListener("click", function () {
+                const current = root.getAttribute("data-theme") || "light";
+                const next = current === "dark" ? "light" : "dark";
+                root.setAttribute("data-theme", next);
+                localStorage.setItem("theme_mode", next);
+                updateButtonLabel();
+            });
+
+            updateButtonLabel();
+        })();
+    </script>
 </body>
 </html>

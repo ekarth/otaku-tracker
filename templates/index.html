@@ -52,6 +52,10 @@
             Latest Episode
             <input type="number" min="0" name="latest_episode">
         </label>
+        <label class="media-field episode-only">
+            Seasons Aired
+            <input type="number" min="0" name="seasons_aired">
+        </label>
         <label class="media-field volume-only">
             Current Volume
             <input type="number" min="0" name="current_volume">
@@ -59,6 +63,10 @@
         <label class="media-field episode-only">
             Current Episode
             <input type="number" min="0" name="current_episode">
+        </label>
+        <label class="media-field episode-only">
+            Seasons Watched
+            <input type="number" min="0" name="seasons_watched">
         </label>
         <label class="media-field volume-only">
             Downloaded Volume Upto
@@ -165,6 +173,10 @@
                                                 <input type="number" min="0" name="current_episode" value="{{ entry.current_episode or '' }}">
                                             </label>
                                             <label>
+                                                Seasons Watched
+                                                <input type="number" min="0" name="seasons_watched" value="{{ entry.seasons_watched or '' }}">
+                                            </label>
+                                            <label>
                                                 DL Ep Upto
                                                 <input type="number" min="0" name="downloaded_episode_upto" value="{{ entry.downloaded_episode_upto or '' }}">
                                             </label>
@@ -204,6 +216,10 @@
                                             <label>
                                                 Latest Episode
                                                 <input type="number" min="0" name="latest_episode" value="{{ entry.series.latest_episode or '' }}">
+                                            </label>
+                                            <label>
+                                                Seasons Aired
+                                                <input type="number" min="0" name="seasons_aired" value="{{ entry.series.seasons_aired or '' }}">
                                             </label>
                                         {% endif %}
                                         <label class="full">

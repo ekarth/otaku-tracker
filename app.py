@@ -104,6 +104,7 @@ class Series(db.Model):
     )
     latest_volume = db.Column(db.Integer, nullable=True)
     latest_episode = db.Column(db.Integer, nullable=True)
+    seasons_aired = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -119,6 +120,7 @@ class ReadlistEntry(db.Model):
     prefer_download = db.Column(db.Boolean, nullable=False, default=True)
     current_volume = db.Column(db.Integer, nullable=True)
     current_episode = db.Column(db.Integer, nullable=True)
+    seasons_watched = db.Column(db.Integer, nullable=True)
     downloaded_volume_upto = db.Column(db.Integer, nullable=True)
     downloaded_episode_upto = db.Column(db.Integer, nullable=True)
     start_date = db.Column(db.Date, nullable=True)
@@ -222,6 +224,12 @@ def validate_media_specific_values(
     return None
 
 
+def validate_anime_only_value(media_type: MediaType, value: int | None, label: str) -> str | None:
+    if media_type == MediaType.BOOK and value is not None:
+        return f"{label} is only allowed for anime."
+    return None
+
+
 def add_history_event(
     entry: ReadlistEntry,
     event_type: HistoryEventType,
@@ -246,8 +254,19 @@ def add_history_event(
 
 def progress_text(entry: ReadlistEntry) -> str:
     if entry.series.media_type == MediaType.ANIME:
-        watched = f"Ep {entry.current_episode}" if entry.current_episode is not None else "Not started"
-        total = f"/ {entry.series.latest_episode}" if entry.series.latest_episode is not None else ""
+        watched_parts = []
+        if entry.seasons_watched is not None:
+            watched_parts.append(f"S {entry.seasons_watched}")
+        if entry.current_episode is not None:
+            watched_parts.append(f"Ep {entry.current_episode}")
+        watched = " | ".join(watched_parts) if watched_parts else "Not started"
+
+        total_parts = []
+        if entry.series.seasons_aired is not None:
+            total_parts.append(f"S {entry.series.seasons_aired}")
+        if entry.series.latest_episode is not None:
+            total_parts.append(f"Ep {entry.series.latest_episode}")
+        total = f"/ {' | '.join(total_parts)}" if total_parts else ""
         return f"{watched} {total}".strip()
 
     parts = []
@@ -354,14 +373,18 @@ def add_entry():
     publication_status = PublicationStatus[pub_raw] if pub_raw in PublicationStatus.__members__ else PublicationStatus.ONGOING
     latest_volume = parse_int(request.form.get("latest_volume"))
     latest_episode = parse_int(request.form.get("latest_episode"))
+    seasons_aired = parse_int(request.form.get("seasons_aired"))
     current_volume = parse_int(request.form.get("current_volume"))
     current_episode = parse_int(request.form.get("current_episode"))
+    seasons_watched = parse_int(request.form.get("seasons_watched"))
     downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
     downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
 
     invalid_message = (
         validate_media_specific_values(media_type, latest_volume, latest_episode, "Latest volume", "Latest episode")
+        or validate_anime_only_value(media_type, seasons_aired, "Seasons aired")
         or validate_media_specific_values(media_type, current_volume, current_episode, "Current volume", "Current episode")
+        or validate_anime_only_value(media_type, seasons_watched, "Seasons watched")
         or validate_media_specific_values(
             media_type,
             downloaded_volume_upto,
@@ -383,6 +406,7 @@ def add_entry():
             publication_status=publication_status,
             latest_volume=latest_volume if media_type == MediaType.BOOK else None,
             latest_episode=latest_episode if media_type == MediaType.ANIME else None,
+            seasons_aired=seasons_aired if media_type == MediaType.ANIME else None,
         )
         db.session.add(series)
         db.session.flush()
@@ -392,6 +416,8 @@ def add_entry():
             series.latest_volume = latest_volume
         if media_type == MediaType.ANIME and latest_episode is not None:
             series.latest_episode = latest_episode
+        if media_type == MediaType.ANIME and seasons_aired is not None:
+            series.seasons_aired = seasons_aired
 
     if ReadlistEntry.query.filter_by(series_id=series.id).first() is not None:
         flash("This title is already in your tracker.", "error")
@@ -408,6 +434,7 @@ def add_entry():
         prefer_download=request.form.get("prefer_download") == "on",
         current_volume=current_volume if media_type == MediaType.BOOK else None,
         current_episode=current_episode if media_type == MediaType.ANIME else None,
+        seasons_watched=seasons_watched if media_type == MediaType.ANIME else None,
         downloaded_volume_upto=downloaded_volume_upto if media_type == MediaType.BOOK else None,
         downloaded_episode_upto=downloaded_episode_upto if media_type == MediaType.ANIME else None,
         start_date=parse_date(request.form.get("start_date")),
@@ -425,13 +452,16 @@ def add_entry():
     db.session.flush()
 
     add_history_event(entry, HistoryEventType.ADDED, details="Added to tracker")
-    if any(value is not None for value in (entry.current_volume, entry.current_episode)):
+    if any(value is not None for value in (entry.current_volume, entry.current_episode, entry.seasons_watched)):
+        initial_progress_details = "Initial progress"
+        if media_type == MediaType.ANIME and entry.seasons_watched is not None:
+            initial_progress_details = f"Initial progress; Seasons watched: {entry.seasons_watched}"
         add_history_event(
             entry,
             HistoryEventType.PROGRESS,
             volume=entry.current_volume,
             episode=entry.current_episode,
-            details="Initial progress",
+            details=initial_progress_details,
         )
 
     try:
@@ -449,7 +479,7 @@ def update_entry(entry_id: int):
     entry = ReadlistEntry.query.get_or_404(entry_id)
     media_type = entry.series.media_type
     old_status = entry.list_status
-    old_progress = (entry.current_volume, entry.current_episode)
+    old_progress = (entry.current_volume, entry.current_episode, entry.seasons_watched)
     old_downloads = (entry.downloaded_volume_upto, entry.downloaded_episode_upto)
 
     status_raw = (request.form.get("list_status") or old_status.value).upper()
@@ -458,11 +488,13 @@ def update_entry(entry_id: int):
 
     current_volume = parse_int(request.form.get("current_volume"))
     current_episode = parse_int(request.form.get("current_episode"))
+    seasons_watched = parse_int(request.form.get("seasons_watched"))
     downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
     downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
 
     invalid_message = (
         validate_media_specific_values(media_type, current_volume, current_episode, "Current volume", "Current episode")
+        or validate_anime_only_value(media_type, seasons_watched, "Seasons watched")
         or validate_media_specific_values(
             media_type,
             downloaded_volume_upto,
@@ -479,9 +511,11 @@ def update_entry(entry_id: int):
         entry.current_volume = current_volume
         entry.downloaded_volume_upto = downloaded_volume_upto
         entry.current_episode = None
+        entry.seasons_watched = None
         entry.downloaded_episode_upto = None
     else:
         entry.current_episode = current_episode
+        entry.seasons_watched = seasons_watched
         entry.downloaded_episode_upto = downloaded_episode_upto
         entry.current_volume = None
         entry.downloaded_volume_upto = None
@@ -497,7 +531,7 @@ def update_entry(entry_id: int):
     if old_status == ListStatus.COMPLETED and entry.list_status != ListStatus.COMPLETED:
         entry.finish_date = None
 
-    new_progress = (entry.current_volume, entry.current_episode)
+    new_progress = (entry.current_volume, entry.current_episode, entry.seasons_watched)
     new_downloads = (entry.downloaded_volume_upto, entry.downloaded_episode_upto)
     status_changed = old_status != entry.list_status
     progress_changed = old_progress != new_progress
@@ -513,12 +547,17 @@ def update_entry(entry_id: int):
             details=note or None,
         )
     if progress_changed:
+        progress_details = note or "Progress updated"
+        if media_type == MediaType.ANIME and old_progress[2] != entry.seasons_watched:
+            previous_seasons = old_progress[2] if old_progress[2] is not None else "-"
+            current_seasons = entry.seasons_watched if entry.seasons_watched is not None else "-"
+            progress_details = f"{progress_details}; Seasons watched: {previous_seasons} -> {current_seasons}"
         add_history_event(
             entry,
             HistoryEventType.PROGRESS,
             volume=entry.current_volume,
             episode=entry.current_episode,
-            details=note or "Progress updated",
+            details=progress_details,
         )
     if downloads_changed:
         add_history_event(
@@ -548,6 +587,7 @@ def update_availability(entry_id: int):
 
     old_latest_volume = series.latest_volume
     old_latest_episode = series.latest_episode
+    old_seasons_aired = series.seasons_aired
     old_publication_status = series.publication_status
 
     pub_raw = (request.form.get("publication_status") or old_publication_status.value).upper()
@@ -556,6 +596,7 @@ def update_availability(entry_id: int):
 
     latest_volume = parse_int(request.form.get("latest_volume"))
     latest_episode = parse_int(request.form.get("latest_episode"))
+    seasons_aired = parse_int(request.form.get("seasons_aired"))
     invalid_message = validate_media_specific_values(
         series.media_type,
         latest_volume,
@@ -563,6 +604,8 @@ def update_availability(entry_id: int):
         "Latest volume",
         "Latest episode",
     )
+    if invalid_message is None:
+        invalid_message = validate_anime_only_value(series.media_type, seasons_aired, "Seasons aired")
     if invalid_message:
         flash(invalid_message, "error")
         return redirect(url_for("index"))
@@ -571,8 +614,14 @@ def update_availability(entry_id: int):
         series.latest_volume = latest_volume
     if series.media_type == MediaType.ANIME and latest_episode is not None:
         series.latest_episode = latest_episode
+    if series.media_type == MediaType.ANIME and seasons_aired is not None:
+        series.seasons_aired = seasons_aired
 
-    latest_changed = (series.latest_volume != old_latest_volume) or (series.latest_episode != old_latest_episode)
+    latest_changed = (
+        (series.latest_volume != old_latest_volume)
+        or (series.latest_episode != old_latest_episode)
+        or (series.seasons_aired != old_seasons_aired)
+    )
     publication_changed = series.publication_status != old_publication_status
     note = (request.form.get("availability_note") or "").strip()
 
@@ -589,6 +638,10 @@ def update_availability(entry_id: int):
         previous_episode = old_latest_episode if old_latest_episode is not None else "-"
         current_episode = series.latest_episode if series.latest_episode is not None else "-"
         details.append(f"Latest episode: {previous_episode} -> {current_episode}")
+    if series.media_type == MediaType.ANIME and series.seasons_aired != old_seasons_aired:
+        previous_seasons = old_seasons_aired if old_seasons_aired is not None else "-"
+        current_seasons = series.seasons_aired if series.seasons_aired is not None else "-"
+        details.append(f"Seasons aired: {previous_seasons} -> {current_seasons}")
     if publication_changed:
         details.append(f"Publication: {old_publication_status.value} -> {series.publication_status.value}")
     if note:

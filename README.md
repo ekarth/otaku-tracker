@@ -54,5 +54,6 @@ flask --app app.py init-db
 
 - `series`: title metadata for BOOK/ANIME, subtype, and release status.
 - `readlist_entries`: one tracked row per series with your current progress and download preference.
+  For anime, this includes seasons aired/watched tracking.
 - `history_events`: immutable log for add/progress/status/download-note changes.
 - `downloaded_assets`: detailed local download history (unit + path).

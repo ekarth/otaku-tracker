@@ -5,8 +5,12 @@
     <h2>Add To Tracker</h2>
     <form method="post" action="{{ url_for('add_entry') }}" class="grid-form" id="add-form">
         <label>
-            Title
-            <input type="text" name="title" maxlength="255" required>
+            Japanese Title
+            <input type="text" name="japanese_title" maxlength="255">
+        </label>
+        <label>
+            English Title
+            <input type="text" name="english_title" maxlength="255">
         </label>
         <label>
             Media
@@ -133,7 +137,7 @@
                     {% for entry in entries %}
                         <tr>
                             <td>
-                                <strong>{{ entry.series.title }}</strong>
+                                <strong>{{ entry.series.display_title }}</strong>
                                 <div class="chips">
                                     <span>{{ entry.series.media_type.value }}</span>
                                     {% if entry.series.media_type.value == "BOOK" %}
@@ -270,7 +274,7 @@
         <ul class="history-list">
             {% for event in history_preview %}
                 <li>
-                    <strong>{{ event.entry.series.title }}</strong>
+                    <strong>{{ event.entry.series.display_title }}</strong>
                     <span>{{ event.event_type.value }}</span>
                     <span>{{ event.created_at | dt }}</span>
                     {% if event.details %}

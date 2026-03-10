@@ -7,6 +7,7 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_sqlalchemy import SQLAlchemy
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import and_, or_
 
 
 class Settings(BaseSettings):
@@ -87,10 +88,11 @@ class UnitType(enum.Enum):
 
 class Series(db.Model):
     __tablename__ = "series"
-    __table_args__ = (db.UniqueConstraint("title", "media_type", "book_type", name="uq_series_identity"),)
+    __table_args__ = (db.UniqueConstraint("japanese_title", "english_title", "media_type", "book_type", name="uq_series_identity"),)
 
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
+    japanese_title = db.Column(db.String(255), nullable=True)
+    english_title = db.Column(db.String(255), nullable=True)
     media_type = db.Column(db.Enum(MediaType, native_enum=False, length=16), nullable=False)
     book_type = db.Column(
         db.Enum(BookType, native_enum=False, length=16),
@@ -109,6 +111,16 @@ class Series(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     entry = db.relationship("ReadlistEntry", back_populates="series", uselist=False, cascade="all, delete-orphan")
+
+    @property
+    def display_title(self) -> str:
+        if self.english_title and self.japanese_title:
+            return f"{self.english_title} ({self.japanese_title})"
+        if self.english_title:
+            return self.english_title
+        if self.japanese_title:
+            return self.japanese_title
+        return "Untitled"
 
 
 class ReadlistEntry(db.Model):
@@ -349,9 +361,10 @@ def index():
 
 @app.post("/add")
 def add_entry():
-    title = (request.form.get("title") or "").strip()
-    if not title:
-        flash("Title is required.", "error")
+    japanese_title = (request.form.get("japanese_title") or "").strip() or None
+    english_title = (request.form.get("english_title") or "").strip() or None
+    if not japanese_title and not english_title:
+        flash("Provide at least one title (Japanese or English).", "error")
         return redirect(url_for("index"))
 
     media_raw = (request.form.get("media_type") or "").upper()
@@ -397,10 +410,25 @@ def add_entry():
         flash(invalid_message, "error")
         return redirect(url_for("index"))
 
-    series = Series.query.filter_by(title=title, media_type=media_type, book_type=book_type).first()
+    series_query = Series.query.filter_by(media_type=media_type, book_type=book_type)
+    if japanese_title and english_title:
+        series = series_query.filter_by(japanese_title=japanese_title, english_title=english_title).first()
+        if series is None:
+            series = series_query.filter(
+                or_(
+                    and_(Series.japanese_title == japanese_title, Series.english_title.is_(None)),
+                    and_(Series.english_title == english_title, Series.japanese_title.is_(None)),
+                )
+            ).first()
+    elif japanese_title:
+        series = series_query.filter(Series.japanese_title == japanese_title).first()
+    else:
+        series = series_query.filter(Series.english_title == english_title).first()
+
     if series is None:
         series = Series(
-            title=title,
+            japanese_title=japanese_title,
+            english_title=english_title,
             media_type=media_type,
             book_type=book_type,
             publication_status=publication_status,
@@ -411,6 +439,10 @@ def add_entry():
         db.session.add(series)
         db.session.flush()
     else:
+        if japanese_title and not series.japanese_title:
+            series.japanese_title = japanese_title
+        if english_title and not series.english_title:
+            series.english_title = english_title
         series.publication_status = publication_status
         if media_type == MediaType.BOOK and latest_volume is not None:
             series.latest_volume = latest_volume
@@ -420,7 +452,7 @@ def add_entry():
             series.seasons_aired = seasons_aired
 
     if ReadlistEntry.query.filter_by(series_id=series.id).first() is not None:
-        flash("This title is already in your tracker.", "error")
+        flash("This series is already in your tracker.", "error")
         db.session.rollback()
         return redirect(url_for("index"))
 

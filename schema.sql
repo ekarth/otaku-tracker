@@ -10,7 +10,8 @@ CREATE DATABASE IF NOT EXISTS otaku_tracker
 
 CREATE TABLE IF NOT EXISTS series (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
+    japanese_title VARCHAR(255) NULL,
+    english_title VARCHAR(255) NULL,
     media_type ENUM('BOOK', 'ANIME') NOT NULL,
     book_type ENUM('MANGA', 'MANHWA', 'LIGHT_NOVEL', 'N_A') NOT NULL DEFAULT 'N_A',
     publication_status ENUM('ONGOING', 'COMPLETED', 'HIATUS', 'CANCELLED') NOT NULL DEFAULT 'ONGOING',
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS series (
     seasons_aired INT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT uq_series_identity UNIQUE (title, media_type, book_type),
+    CONSTRAINT uq_series_identity UNIQUE (japanese_title, english_title, media_type, book_type),
     INDEX idx_series_media (media_type),
     INDEX idx_series_publication_status (publication_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

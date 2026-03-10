@@ -34,7 +34,7 @@
                     {% for event in events %}
                         <tr>
                             <td>{{ event.created_at | dt }}</td>
-                            <td>{{ event.entry.series.title }}</td>
+                            <td>{{ event.entry.series.display_title }}</td>
                             <td>{{ event.entry.series.media_type.value }}</td>
                             <td>{{ event.event_type.value }}</td>
                             <td>

@@ -74,6 +74,7 @@ class ListStatus(enum.Enum):
 class HistoryEventType(enum.Enum):
     ADDED = "ADDED"
     PROGRESS = "PROGRESS"
+    AVAILABILITY_UPDATE = "AVAILABILITY_UPDATE"
     STATUS_CHANGE = "STATUS_CHANGE"
     DOWNLOAD_UPDATE = "DOWNLOAD_UPDATE"
     NOTE = "NOTE"
@@ -207,6 +208,20 @@ def parse_date(value: str | None) -> date | None:
         return None
 
 
+def validate_media_specific_values(
+    media_type: MediaType,
+    volume_value: int | None,
+    episode_value: int | None,
+    volume_label: str,
+    episode_label: str,
+) -> str | None:
+    if media_type == MediaType.BOOK and episode_value is not None:
+        return f"{episode_label} is only allowed for anime."
+    if media_type == MediaType.ANIME and volume_value is not None:
+        return f"{volume_label} is only allowed for books."
+    return None
+
+
 def add_history_event(
     entry: ReadlistEntry,
     event_type: HistoryEventType,
@@ -310,7 +325,6 @@ def index():
         status_values=[s.value for s in ListStatus],
         add_book_types=[b.value for b in BookType if b != BookType.N_A],
         publication_values=[p.value for p in PublicationStatus],
-        unit_values=[u.value for u in UnitType],
     )
 
 
@@ -338,6 +352,27 @@ def add_entry():
 
     pub_raw = (request.form.get("publication_status") or "ONGOING").upper()
     publication_status = PublicationStatus[pub_raw] if pub_raw in PublicationStatus.__members__ else PublicationStatus.ONGOING
+    latest_volume = parse_int(request.form.get("latest_volume"))
+    latest_episode = parse_int(request.form.get("latest_episode"))
+    current_volume = parse_int(request.form.get("current_volume"))
+    current_episode = parse_int(request.form.get("current_episode"))
+    downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
+    downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
+
+    invalid_message = (
+        validate_media_specific_values(media_type, latest_volume, latest_episode, "Latest volume", "Latest episode")
+        or validate_media_specific_values(media_type, current_volume, current_episode, "Current volume", "Current episode")
+        or validate_media_specific_values(
+            media_type,
+            downloaded_volume_upto,
+            downloaded_episode_upto,
+            "Downloaded volume",
+            "Downloaded episode",
+        )
+    )
+    if invalid_message:
+        flash(invalid_message, "error")
+        return redirect(url_for("index"))
 
     series = Series.query.filter_by(title=title, media_type=media_type, book_type=book_type).first()
     if series is None:
@@ -346,18 +381,16 @@ def add_entry():
             media_type=media_type,
             book_type=book_type,
             publication_status=publication_status,
-            latest_volume=parse_int(request.form.get("latest_volume")),
-            latest_episode=parse_int(request.form.get("latest_episode")),
+            latest_volume=latest_volume if media_type == MediaType.BOOK else None,
+            latest_episode=latest_episode if media_type == MediaType.ANIME else None,
         )
         db.session.add(series)
         db.session.flush()
     else:
         series.publication_status = publication_status
-        latest_volume = parse_int(request.form.get("latest_volume"))
-        latest_episode = parse_int(request.form.get("latest_episode"))
-        if latest_volume is not None:
+        if media_type == MediaType.BOOK and latest_volume is not None:
             series.latest_volume = latest_volume
-        if latest_episode is not None:
+        if media_type == MediaType.ANIME and latest_episode is not None:
             series.latest_episode = latest_episode
 
     if ReadlistEntry.query.filter_by(series_id=series.id).first() is not None:
@@ -373,10 +406,10 @@ def add_entry():
         series=series,
         list_status=list_status,
         prefer_download=request.form.get("prefer_download") == "on",
-        current_volume=parse_int(request.form.get("current_volume")),
-        current_episode=parse_int(request.form.get("current_episode")),
-        downloaded_volume_upto=parse_int(request.form.get("downloaded_volume_upto")),
-        downloaded_episode_upto=parse_int(request.form.get("downloaded_episode_upto")),
+        current_volume=current_volume if media_type == MediaType.BOOK else None,
+        current_episode=current_episode if media_type == MediaType.ANIME else None,
+        downloaded_volume_upto=downloaded_volume_upto if media_type == MediaType.BOOK else None,
+        downloaded_episode_upto=downloaded_episode_upto if media_type == MediaType.ANIME else None,
         start_date=parse_date(request.form.get("start_date")),
         finish_date=parse_date(request.form.get("finish_date")),
         notes=(request.form.get("notes") or "").strip() or None,
@@ -414,6 +447,7 @@ def add_entry():
 @app.post("/entry/<int:entry_id>/update")
 def update_entry(entry_id: int):
     entry = ReadlistEntry.query.get_or_404(entry_id)
+    media_type = entry.series.media_type
     old_status = entry.list_status
     old_progress = (entry.current_volume, entry.current_episode)
     old_downloads = (entry.downloaded_volume_upto, entry.downloaded_episode_upto)
@@ -422,10 +456,36 @@ def update_entry(entry_id: int):
     if status_raw in ListStatus.__members__:
         entry.list_status = ListStatus[status_raw]
 
-    entry.current_volume = parse_int(request.form.get("current_volume"))
-    entry.current_episode = parse_int(request.form.get("current_episode"))
-    entry.downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
-    entry.downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
+    current_volume = parse_int(request.form.get("current_volume"))
+    current_episode = parse_int(request.form.get("current_episode"))
+    downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
+    downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
+
+    invalid_message = (
+        validate_media_specific_values(media_type, current_volume, current_episode, "Current volume", "Current episode")
+        or validate_media_specific_values(
+            media_type,
+            downloaded_volume_upto,
+            downloaded_episode_upto,
+            "Downloaded volume",
+            "Downloaded episode",
+        )
+    )
+    if invalid_message:
+        flash(invalid_message, "error")
+        return redirect(url_for("index"))
+
+    if media_type == MediaType.BOOK:
+        entry.current_volume = current_volume
+        entry.downloaded_volume_upto = downloaded_volume_upto
+        entry.current_episode = None
+        entry.downloaded_episode_upto = None
+    else:
+        entry.current_episode = current_episode
+        entry.downloaded_episode_upto = downloaded_episode_upto
+        entry.current_volume = None
+        entry.downloaded_volume_upto = None
+
     entry.prefer_download = request.form.get("prefer_download") == "on"
     entry.notes = (request.form.get("notes") or "").strip() or None
     entry.last_activity_at = datetime.utcnow()
@@ -481,6 +541,78 @@ def update_entry(entry_id: int):
     return redirect(url_for("index"))
 
 
+@app.post("/entry/<int:entry_id>/availability")
+def update_availability(entry_id: int):
+    entry = ReadlistEntry.query.get_or_404(entry_id)
+    series = entry.series
+
+    old_latest_volume = series.latest_volume
+    old_latest_episode = series.latest_episode
+    old_publication_status = series.publication_status
+
+    pub_raw = (request.form.get("publication_status") or old_publication_status.value).upper()
+    if pub_raw in PublicationStatus.__members__:
+        series.publication_status = PublicationStatus[pub_raw]
+
+    latest_volume = parse_int(request.form.get("latest_volume"))
+    latest_episode = parse_int(request.form.get("latest_episode"))
+    invalid_message = validate_media_specific_values(
+        series.media_type,
+        latest_volume,
+        latest_episode,
+        "Latest volume",
+        "Latest episode",
+    )
+    if invalid_message:
+        flash(invalid_message, "error")
+        return redirect(url_for("index"))
+
+    if series.media_type == MediaType.BOOK and latest_volume is not None:
+        series.latest_volume = latest_volume
+    if series.media_type == MediaType.ANIME and latest_episode is not None:
+        series.latest_episode = latest_episode
+
+    latest_changed = (series.latest_volume != old_latest_volume) or (series.latest_episode != old_latest_episode)
+    publication_changed = series.publication_status != old_publication_status
+    note = (request.form.get("availability_note") or "").strip()
+
+    if not latest_changed and not publication_changed and not note:
+        flash("No availability changes detected.", "error")
+        return redirect(url_for("index"))
+
+    details: list[str] = []
+    if series.media_type == MediaType.BOOK and series.latest_volume != old_latest_volume:
+        previous_volume = old_latest_volume if old_latest_volume is not None else "-"
+        current_volume = series.latest_volume if series.latest_volume is not None else "-"
+        details.append(f"Latest volume: {previous_volume} -> {current_volume}")
+    if series.media_type == MediaType.ANIME and series.latest_episode != old_latest_episode:
+        previous_episode = old_latest_episode if old_latest_episode is not None else "-"
+        current_episode = series.latest_episode if series.latest_episode is not None else "-"
+        details.append(f"Latest episode: {previous_episode} -> {current_episode}")
+    if publication_changed:
+        details.append(f"Publication: {old_publication_status.value} -> {series.publication_status.value}")
+    if note:
+        details.append(note)
+
+    add_history_event(
+        entry,
+        HistoryEventType.AVAILABILITY_UPDATE,
+        volume=series.latest_volume if series.media_type == MediaType.BOOK else None,
+        episode=series.latest_episode if series.media_type == MediaType.ANIME else None,
+        details="; ".join(details) if details else "Availability reviewed",
+    )
+    entry.last_activity_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+        flash("Availability updated.", "success")
+    except Exception:
+        db.session.rollback()
+        flash("Failed to update availability.", "error")
+
+    return redirect(url_for("index"))
+
+
 @app.post("/entry/<int:entry_id>/downloads")
 def add_download_asset(entry_id: int):
     entry = ReadlistEntry.query.get_or_404(entry_id)
@@ -488,6 +620,13 @@ def add_download_asset(entry_id: int):
     unit_raw = (request.form.get("unit_type") or "").upper()
     if unit_raw not in UnitType.__members__:
         flash("Invalid unit type.", "error")
+        return redirect(url_for("index"))
+    unit_type = UnitType[unit_raw]
+    if entry.series.media_type == MediaType.BOOK and unit_type != UnitType.VOLUME:
+        flash("Books can only log VOLUME downloads.", "error")
+        return redirect(url_for("index"))
+    if entry.series.media_type == MediaType.ANIME and unit_type != UnitType.EPISODE:
+        flash("Anime can only log EPISODE downloads.", "error")
         return redirect(url_for("index"))
 
     unit_number = parse_decimal(request.form.get("unit_number"))
@@ -498,7 +637,7 @@ def add_download_asset(entry_id: int):
 
     asset = DownloadedAsset(
         entry=entry,
-        unit_type=UnitType[unit_raw],
+        unit_type=unit_type,
         unit_number=unit_number,
         local_path=local_path,
     )

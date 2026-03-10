@@ -44,27 +44,27 @@
             <input type="checkbox" name="prefer_download" checked>
             Prefer downloaded copies
         </label>
-        <label>
+        <label class="media-field volume-only">
             Latest Volume
             <input type="number" min="0" name="latest_volume">
         </label>
-        <label>
+        <label class="media-field episode-only">
             Latest Episode
             <input type="number" min="0" name="latest_episode">
         </label>
-        <label>
+        <label class="media-field volume-only">
             Current Volume
             <input type="number" min="0" name="current_volume">
         </label>
-        <label>
+        <label class="media-field episode-only">
             Current Episode
             <input type="number" min="0" name="current_episode">
         </label>
-        <label>
+        <label class="media-field volume-only">
             Downloaded Volume Upto
             <input type="number" min="0" name="downloaded_volume_upto">
         </label>
-        <label>
+        <label class="media-field episode-only">
             Downloaded Episode Upto
             <input type="number" min="0" name="downloaded_episode_upto">
         </label>
@@ -150,22 +150,25 @@
                                                 {% endfor %}
                                             </select>
                                         </label>
-                                        <label>
-                                            Current Vol
-                                            <input type="number" min="0" name="current_volume" value="{{ entry.current_volume or '' }}">
-                                        </label>
-                                        <label>
-                                            Current Ep
-                                            <input type="number" min="0" name="current_episode" value="{{ entry.current_episode or '' }}">
-                                        </label>
-                                        <label>
-                                            DL Vol Upto
-                                            <input type="number" min="0" name="downloaded_volume_upto" value="{{ entry.downloaded_volume_upto or '' }}">
-                                        </label>
-                                        <label>
-                                            DL Ep Upto
-                                            <input type="number" min="0" name="downloaded_episode_upto" value="{{ entry.downloaded_episode_upto or '' }}">
-                                        </label>
+                                        {% if entry.series.media_type.value == "BOOK" %}
+                                            <label>
+                                                Current Vol
+                                                <input type="number" min="0" name="current_volume" value="{{ entry.current_volume or '' }}">
+                                            </label>
+                                            <label>
+                                                DL Vol Upto
+                                                <input type="number" min="0" name="downloaded_volume_upto" value="{{ entry.downloaded_volume_upto or '' }}">
+                                            </label>
+                                        {% else %}
+                                            <label>
+                                                Current Ep
+                                                <input type="number" min="0" name="current_episode" value="{{ entry.current_episode or '' }}">
+                                            </label>
+                                            <label>
+                                                DL Ep Upto
+                                                <input type="number" min="0" name="downloaded_episode_upto" value="{{ entry.downloaded_episode_upto or '' }}">
+                                            </label>
+                                        {% endif %}
                                         <label class="checkbox">
                                             <input type="checkbox" name="prefer_download" {% if entry.prefer_download %}checked{% endif %}>
                                             Prefer downloaded copies
@@ -182,14 +185,45 @@
                                     </form>
                                 </details>
                                 <details>
+                                    <summary>Update Availability</summary>
+                                    <form method="post" action="{{ url_for('update_availability', entry_id=entry.id) }}" class="compact-form">
+                                        <label>
+                                            Release Status
+                                            <select name="publication_status">
+                                                {% for publication in publication_values %}
+                                                    <option value="{{ publication }}" {% if entry.series.publication_status.value == publication %}selected{% endif %}>{{ publication }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </label>
+                                        {% if entry.series.media_type.value == "BOOK" %}
+                                            <label>
+                                                Latest Volume
+                                                <input type="number" min="0" name="latest_volume" value="{{ entry.series.latest_volume or '' }}">
+                                            </label>
+                                        {% else %}
+                                            <label>
+                                                Latest Episode
+                                                <input type="number" min="0" name="latest_episode" value="{{ entry.series.latest_episode or '' }}">
+                                            </label>
+                                        {% endif %}
+                                        <label class="full">
+                                            Update Note
+                                            <input type="text" name="availability_note" maxlength="500" placeholder="Optional release update note">
+                                        </label>
+                                        <button type="submit" class="btn secondary">Save Availability</button>
+                                    </form>
+                                </details>
+                                <details>
                                     <summary>Log Download</summary>
                                     <form method="post" action="{{ url_for('add_download_asset', entry_id=entry.id) }}" class="compact-form">
                                         <label>
                                             Unit Type
                                             <select name="unit_type">
-                                                {% for unit in unit_values %}
-                                                    <option value="{{ unit }}">{{ unit }}</option>
-                                                {% endfor %}
+                                                {% if entry.series.media_type.value == "BOOK" %}
+                                                    <option value="VOLUME">VOLUME</option>
+                                                {% else %}
+                                                    <option value="EPISODE">EPISODE</option>
+                                                {% endif %}
                                             </select>
                                         </label>
                                         <label>
@@ -237,13 +271,29 @@
 <script>
     const mediaField = document.getElementById("media_type");
     const bookTypeWrap = document.getElementById("book_type_wrap");
+    const mediaFields = document.querySelectorAll(".media-field");
 
-    function syncBookTypeVisibility() {
+    function syncAddFormVisibility() {
         const isBook = mediaField.value === "BOOK";
-        bookTypeWrap.style.display = isBook ? "block" : "none";
+        bookTypeWrap.style.display = isBook ? "grid" : "none";
+
+        const bookTypeSelect = bookTypeWrap.querySelector("select");
+        bookTypeSelect.disabled = !isBook;
+
+        mediaFields.forEach((field) => {
+            const volumeOnly = field.classList.contains("volume-only");
+            const episodeOnly = field.classList.contains("episode-only");
+            const shouldShow = (isBook && volumeOnly) || (!isBook && episodeOnly);
+
+            field.style.display = shouldShow ? "grid" : "none";
+            const input = field.querySelector("input, select");
+            if (input) {
+                input.disabled = !shouldShow;
+            }
+        });
     }
 
-    mediaField.addEventListener("change", syncBookTypeVisibility);
-    syncBookTypeVisibility();
+    mediaField.addEventListener("change", syncAddFormVisibility);
+    syncAddFormVisibility();
 </script>
 {% endblock %}

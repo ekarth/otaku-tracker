@@ -3,6 +3,7 @@
 Track manga, manhwa, light novels, and anime in one place with:
 - Current read/watch list
 - Ongoing/completed status
+- Latest volume/episode availability updates with history logs
 - Download preference and downloaded-unit tracking
 - Full history of progress and status changes
 

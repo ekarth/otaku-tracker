@@ -329,6 +329,11 @@ def datetime_filter(value: datetime | None) -> str:
 
 
 @app.get("/")
+def home():
+    return render_template("home.html")
+
+
+@app.get("/readlist")
 def index():
     media_filter = request.args.get("media", "ALL").upper()
     status_filter = request.args.get("status", "ALL").upper()

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+    <h2>Home</h2>
+    <p>Use this tracker to manage manga, manhwa, light novels, and anime in one place.</p>
+    <div class="inline-form">
+        <a href="{{ url_for('index') }}" class="btn">Go To Readlist</a>
+        <a href="{{ url_for('history') }}" class="btn secondary">View History</a>
+    </div>
+</section>
+{% endblock %}

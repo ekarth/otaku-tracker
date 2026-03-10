@@ -100,6 +100,10 @@
                                                 DL Vol Upto
                                                 <input type="number" min="0" name="downloaded_volume_upto" value="{{ entry.downloaded_volume_upto or '' }}">
                                             </label>
+                                            <label class="checkbox">
+                                                <input type="checkbox" name="prefer_download" {% if entry.prefer_download %}checked{% endif %}>
+                                                Prefer downloaded copies
+                                            </label>
                                         {% else %}
                                             <label>
                                                 Current Ep
@@ -109,15 +113,7 @@
                                                 Seasons Watched
                                                 <input type="number" min="0" name="seasons_watched" value="{{ entry.seasons_watched or '' }}">
                                             </label>
-                                            <label>
-                                                DL Ep Upto
-                                                <input type="number" min="0" name="downloaded_episode_upto" value="{{ entry.downloaded_episode_upto or '' }}">
-                                            </label>
                                         {% endif %}
-                                        <label class="checkbox">
-                                            <input type="checkbox" name="prefer_download" {% if entry.prefer_download %}checked{% endif %}>
-                                            Prefer downloaded copies
-                                        </label>
                                         <label class="full">
                                             Notes
                                             <textarea name="notes" rows="2">{{ entry.notes or '' }}</textarea>
@@ -162,30 +158,28 @@
                                         <button type="submit" class="btn secondary">Save Availability</button>
                                     </form>
                                 </details>
-                                <details>
-                                    <summary>Log Download</summary>
-                                    <form method="post" action="{{ url_for('add_download_asset', entry_id=entry.id) }}" class="compact-form">
-                                        <label>
-                                            Unit Type
-                                            <select name="unit_type">
-                                                {% if entry.series.media_type.value == "BOOK" %}
+                                {% if entry.series.media_type.value == "BOOK" %}
+                                    <details>
+                                        <summary>Log Download</summary>
+                                        <form method="post" action="{{ url_for('add_download_asset', entry_id=entry.id) }}" class="compact-form">
+                                            <label>
+                                                Unit Type
+                                                <select name="unit_type">
                                                     <option value="VOLUME">VOLUME</option>
-                                                {% else %}
-                                                    <option value="EPISODE">EPISODE</option>
-                                                {% endif %}
-                                            </select>
-                                        </label>
-                                        <label>
-                                            Unit Number
-                                            <input type="number" min="0" step="0.01" name="unit_number" required>
-                                        </label>
-                                        <label class="full">
-                                            Local Path
-                                            <input type="text" name="local_path" maxlength="500" placeholder="D:\downloads\..." required>
-                                        </label>
-                                        <button type="submit" class="btn secondary">Add Download Entry</button>
-                                    </form>
-                                </details>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                Unit Number
+                                                <input type="number" min="0" step="0.01" name="unit_number" required>
+                                            </label>
+                                            <label class="full">
+                                                Local Path
+                                                <input type="text" name="local_path" maxlength="500" placeholder="D:\downloads\..." required>
+                                            </label>
+                                            <button type="submit" class="btn secondary">Add Download Entry</button>
+                                        </form>
+                                    </details>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

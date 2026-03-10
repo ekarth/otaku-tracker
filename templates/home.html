@@ -53,7 +53,7 @@
                 {% endfor %}
             </select>
         </label>
-        <label class="checkbox">
+        <label class="checkbox media-field volume-only">
             <input type="checkbox" name="prefer_download" checked>
             Prefer downloaded copies
         </label>
@@ -84,10 +84,6 @@
         <label class="media-field volume-only">
             Downloaded Volume Upto
             <input type="number" min="0" name="downloaded_volume_upto">
-        </label>
-        <label class="media-field episode-only">
-            Downloaded Episode Upto
-            <input type="number" min="0" name="downloaded_episode_upto">
         </label>
         <label>
             Start Date
@@ -122,7 +118,7 @@
             const episodeOnly = field.classList.contains("episode-only");
             const shouldShow = (isBook && volumeOnly) || (!isBook && episodeOnly);
 
-            field.style.display = shouldShow ? "grid" : "none";
+            field.style.display = shouldShow ? "" : "none";
             const input = field.querySelector("input, select");
             if (input) {
                 input.disabled = !shouldShow;

@@ -258,6 +258,22 @@ def validate_anime_only_value(media_type: MediaType, value: int | None, label: s
     return None
 
 
+def validate_download_options(
+    media_type: MediaType,
+    prefer_download: bool,
+    downloaded_volume_upto: int | None,
+    downloaded_episode_upto: int | None,
+) -> str | None:
+    if media_type == MediaType.ANIME:
+        if prefer_download or downloaded_volume_upto is not None or downloaded_episode_upto is not None:
+            return "Download options are only available for books."
+        return None
+
+    if downloaded_episode_upto is not None:
+        return "Episode download tracking is not supported."
+    return None
+
+
 def add_history_event(
     entry: ReadlistEntry,
     event_type: HistoryEventType,
@@ -311,13 +327,11 @@ def progress_text(entry: ReadlistEntry) -> str:
 
 
 def downloaded_text(entry: ReadlistEntry) -> str:
+    if entry.series.media_type == MediaType.ANIME:
+        return "Not available for anime"
+
     if not entry.prefer_download:
         return "Streaming / online"
-
-    if entry.series.media_type == MediaType.ANIME:
-        if entry.downloaded_episode_upto is None:
-            return "No episodes downloaded"
-        return f"Downloaded up to Ep {entry.downloaded_episode_upto}"
 
     parts = []
     if entry.downloaded_volume_upto is not None:
@@ -505,19 +519,14 @@ def add_entry():
     seasons_watched = parse_int(request.form.get("seasons_watched"))
     downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
     downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
+    prefer_download = request.form.get("prefer_download") == "on"
 
     invalid_message = (
         validate_media_specific_values(media_type, latest_volume, latest_episode, "Latest volume", "Latest episode")
         or validate_anime_only_value(media_type, seasons_aired, "Seasons aired")
         or validate_media_specific_values(media_type, current_volume, current_episode, "Current volume", "Current episode")
         or validate_anime_only_value(media_type, seasons_watched, "Seasons watched")
-        or validate_media_specific_values(
-            media_type,
-            downloaded_volume_upto,
-            downloaded_episode_upto,
-            "Downloaded volume",
-            "Downloaded episode",
-        )
+        or validate_download_options(media_type, prefer_download, downloaded_volume_upto, downloaded_episode_upto)
     )
     if invalid_message:
         flash(invalid_message, "error")
@@ -576,12 +585,12 @@ def add_entry():
     entry = ReadlistEntry(
         series=series,
         list_status=list_status,
-        prefer_download=request.form.get("prefer_download") == "on",
+        prefer_download=prefer_download if media_type == MediaType.BOOK else False,
         current_volume=current_volume if media_type == MediaType.BOOK else None,
         current_episode=current_episode if media_type == MediaType.ANIME else None,
         seasons_watched=seasons_watched if media_type == MediaType.ANIME else None,
         downloaded_volume_upto=downloaded_volume_upto if media_type == MediaType.BOOK else None,
-        downloaded_episode_upto=downloaded_episode_upto if media_type == MediaType.ANIME else None,
+        downloaded_episode_upto=None,
         start_date=parse_date(request.form.get("start_date")),
         finish_date=parse_date(request.form.get("finish_date")),
         notes=(request.form.get("notes") or "").strip() or None,
@@ -636,17 +645,12 @@ def update_entry(entry_id: int):
     seasons_watched = parse_int(request.form.get("seasons_watched"))
     downloaded_volume_upto = parse_int(request.form.get("downloaded_volume_upto"))
     downloaded_episode_upto = parse_int(request.form.get("downloaded_episode_upto"))
+    prefer_download = request.form.get("prefer_download") == "on"
 
     invalid_message = (
         validate_media_specific_values(media_type, current_volume, current_episode, "Current volume", "Current episode")
         or validate_anime_only_value(media_type, seasons_watched, "Seasons watched")
-        or validate_media_specific_values(
-            media_type,
-            downloaded_volume_upto,
-            downloaded_episode_upto,
-            "Downloaded volume",
-            "Downloaded episode",
-        )
+        or validate_download_options(media_type, prefer_download, downloaded_volume_upto, downloaded_episode_upto)
     )
     if invalid_message:
         flash(invalid_message, "error")
@@ -658,14 +662,15 @@ def update_entry(entry_id: int):
         entry.current_episode = None
         entry.seasons_watched = None
         entry.downloaded_episode_upto = None
+        entry.prefer_download = prefer_download
     else:
         entry.current_episode = current_episode
         entry.seasons_watched = seasons_watched
-        entry.downloaded_episode_upto = downloaded_episode_upto
+        entry.downloaded_episode_upto = None
         entry.current_volume = None
         entry.downloaded_volume_upto = None
+        entry.prefer_download = False
 
-    entry.prefer_download = request.form.get("prefer_download") == "on"
     entry.notes = (request.form.get("notes") or "").strip() or None
     entry.last_activity_at = datetime.utcnow()
 
@@ -814,17 +819,17 @@ def update_availability(entry_id: int):
 @app.post("/entry/<int:entry_id>/downloads")
 def add_download_asset(entry_id: int):
     entry = ReadlistEntry.query.get_or_404(entry_id)
+    if entry.series.media_type != MediaType.BOOK:
+        flash("Download logging is available only for books.", "error")
+        return redirect(url_for("index"))
 
     unit_raw = (request.form.get("unit_type") or "").upper()
     if unit_raw not in UnitType.__members__:
         flash("Invalid unit type.", "error")
         return redirect(url_for("index"))
     unit_type = UnitType[unit_raw]
-    if entry.series.media_type == MediaType.BOOK and unit_type != UnitType.VOLUME:
+    if unit_type != UnitType.VOLUME:
         flash("Books can only log VOLUME downloads.", "error")
-        return redirect(url_for("index"))
-    if entry.series.media_type == MediaType.ANIME and unit_type != UnitType.EPISODE:
-        flash("Anime can only log EPISODE downloads.", "error")
         return redirect(url_for("index"))
 
     unit_number = parse_decimal(request.form.get("unit_number"))

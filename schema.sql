@@ -3,6 +3,11 @@
 
 SET NAMES utf8mb4;
 
+CREATE DATABASE IF NOT EXISTS otaku_tracker
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+
 CREATE TABLE IF NOT EXISTS series (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,

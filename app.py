@@ -8,6 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import validates
 
 
 class Settings(BaseSettings):
@@ -111,6 +112,10 @@ class Series(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     entry = db.relationship("ReadlistEntry", back_populates="series", uselist=False, cascade="all, delete-orphan")
+
+    @validates("japanese_title", "english_title")
+    def normalize_title_values(self, _key: str, value: str | None) -> str | None:
+        return normalize_title(value)
 
     @property
     def display_title(self) -> str:
@@ -220,6 +225,15 @@ def parse_date(value: str | None) -> date | None:
         return date.fromisoformat(value)
     except ValueError:
         return None
+
+
+def normalize_title(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    return normalized.upper()
 
 
 def validate_media_specific_values(
@@ -369,8 +383,8 @@ def index():
 
 @app.post("/add")
 def add_entry():
-    japanese_title = (request.form.get("japanese_title") or "").strip() or None
-    english_title = (request.form.get("english_title") or "").strip() or None
+    japanese_title = normalize_title(request.form.get("japanese_title"))
+    english_title = normalize_title(request.form.get("english_title"))
     if not japanese_title and not english_title:
         flash("Provide at least one title (Japanese or English).", "error")
         return redirect(url_for("home"))

@@ -6,7 +6,7 @@
     <form method="get" action="{{ url_for('index') }}" class="inline-form">
         <label>
             Media
-            <select name="media">
+            <select name="media" id="filter_media_type">
                 <option value="ALL" {% if media_filter == "ALL" %}selected{% endif %}>ALL</option>
                 {% for media in media_values %}
                     <option value="{{ media }}" {% if media_filter == media %}selected{% endif %}>{{ media }}</option>
@@ -31,9 +31,9 @@
                 {% endfor %}
             </select>
         </label>
-        <label>
+        <label id="book_type_filter_wrap">
             Book Type
-            <select name="book_type">
+            <select name="book_type" id="book_type_filter_select">
                 <option value="ALL" {% if book_type_filter == "ALL" %}selected{% endif %}>ALL</option>
                 {% for book_type in book_type_values %}
                     <option value="{{ book_type }}" {% if book_type_filter == book_type %}selected{% endif %}>{{ book_type }}</option>
@@ -196,4 +196,23 @@
         <p>No entries found for the selected filters.</p>
     {% endif %}
 </section>
+
+<script>
+    const filterMediaType = document.getElementById("filter_media_type");
+    const bookTypeFilterWrap = document.getElementById("book_type_filter_wrap");
+    const bookTypeFilterSelect = document.getElementById("book_type_filter_select");
+
+    function syncBookTypeFilterVisibility() {
+        const showBookType = filterMediaType.value === "BOOK";
+        bookTypeFilterWrap.style.display = showBookType ? "grid" : "none";
+        bookTypeFilterSelect.disabled = !showBookType;
+
+        if (!showBookType) {
+            bookTypeFilterSelect.value = "ALL";
+        }
+    }
+
+    filterMediaType.addEventListener("change", syncBookTypeFilterVisibility);
+    syncBookTypeFilterVisibility();
+</script>
 {% endblock %}

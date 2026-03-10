@@ -343,12 +343,15 @@ def home():
 def index():
     media_filter = request.args.get("media", "ALL").upper()
     status_filter = request.args.get("status", "ALL").upper()
+    release_filter = request.args.get("release_status", "ALL").upper()
 
     query = ReadlistEntry.query.join(Series)
     if media_filter in MediaType.__members__:
         query = query.filter(Series.media_type == MediaType[media_filter])
     if status_filter in ListStatus.__members__:
         query = query.filter(ReadlistEntry.list_status == ListStatus[status_filter])
+    if release_filter in PublicationStatus.__members__:
+        query = query.filter(Series.publication_status == PublicationStatus[release_filter])
 
     entries = query.order_by(ReadlistEntry.updated_at.desc()).all()
 
@@ -357,6 +360,7 @@ def index():
         entries=entries,
         media_filter=media_filter,
         status_filter=status_filter,
+        release_filter=release_filter,
         media_values=[m.value for m in MediaType],
         status_values=[s.value for s in ListStatus],
         publication_values=[p.value for p in PublicationStatus],

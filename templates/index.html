@@ -22,6 +22,15 @@
                 {% endfor %}
             </select>
         </label>
+        <label>
+            Release Status
+            <select name="release_status">
+                <option value="ALL" {% if release_filter == "ALL" %}selected{% endif %}>ALL</option>
+                {% for publication in publication_values %}
+                    <option value="{{ publication }}" {% if release_filter == publication %}selected{% endif %}>{{ publication }}</option>
+                {% endfor %}
+            </select>
+        </label>
         <button type="submit" class="btn secondary">Apply Filter</button>
     </form>
 

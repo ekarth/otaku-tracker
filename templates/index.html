@@ -31,7 +31,22 @@
                 {% endfor %}
             </select>
         </label>
+        <label>
+            Book Type
+            <select name="book_type">
+                <option value="ALL" {% if book_type_filter == "ALL" %}selected{% endif %}>ALL</option>
+                {% for book_type in book_type_values %}
+                    <option value="{{ book_type }}" {% if book_type_filter == book_type %}selected{% endif %}>{{ book_type }}</option>
+                {% endfor %}
+            </select>
+        </label>
         <button type="submit" class="btn secondary">Apply Filter</button>
+        <a
+            class="btn"
+            href="{{ url_for('export_readlist_csv', media=media_filter, status=status_filter, release_status=release_filter, book_type=book_type_filter) }}"
+        >
+            Export CSV
+        </a>
     </form>
 
     {% if entries %}

@@ -435,13 +435,9 @@ def export_readlist_csv():
             "latest_volume",
             "latest_episode",
             "seasons_aired",
-            "downloaded_volume_upto",
-            "downloaded_episode_upto",
             "prefer_download",
             "progress_text",
             "downloaded_text",
-            "start_date",
-            "finish_date",
             "last_activity_at",
             "notes",
         ]

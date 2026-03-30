@@ -3,7 +3,7 @@
 {% block content %}
 <section class="panel">
     <h2>Tracker</h2>
-    <form method="get" action="{{ url_for('index') }}" class="inline-form">
+    <form method="get" action="{{ url_for('main.index') }}" class="inline-form">
         <label>
             Media
             <select name="media" id="filter_media_type">
@@ -43,13 +43,22 @@
         <button type="submit" class="btn secondary">Apply Filter</button>
         <a
             class="btn"
-            href="{{ url_for('export_readlist_csv', media=media_filter, status=status_filter, release_status=release_filter, book_type=book_type_filter) }}"
+            href="{{ url_for('main.export_readlist_csv', media=media_filter, status=status_filter, release_status=release_filter, book_type=book_type_filter) }}"
         >
             Export CSV
         </a>
     </form>
 
     {% if entries %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('main.index', page=pagination.prev_num, media=media_filter, status=status_filter, release_status=release_filter, book_type=book_type_filter) }}">&larr; Prev</a>
+            {% endif %}
+            <span>Page {{ pagination.page }} / {{ pagination.pages }} &nbsp;({{ pagination.total }} entries)</span>
+            {% if pagination.has_next %}
+                <a href="{{ url_for('main.index', page=pagination.next_num, media=media_filter, status=status_filter, release_status=release_filter, book_type=book_type_filter) }}">Next &rarr;</a>
+            {% endif %}
+        </div>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -72,6 +81,9 @@
                                     {% if entry.series.media_type.value == "BOOK" %}
                                         <span>{{ entry.series.book_type.value }}</span>
                                     {% endif %}
+                                    {% if entry.series.media_type.value == "MOVIE" and entry.series.parent_anime %}
+                                        <span>{{ entry.series.parent_anime.display_title }}</span>
+                                    {% endif %}
                                     <span>{{ entry.series.publication_status.value }}</span>
                                 </div>
                             </td>
@@ -82,7 +94,7 @@
                             <td class="action-cell">
                                 <details>
                                     <summary>Update</summary>
-                                    <form method="post" action="{{ url_for('update_entry', entry_id=entry.id) }}" class="compact-form">
+                                    <form method="post" action="{{ url_for('entries.update_entry', entry_id=entry.id) }}" class="compact-form">
                                         <label>
                                             Status
                                             <select name="list_status">
@@ -104,7 +116,7 @@
                                                 <input type="checkbox" name="prefer_download" {% if entry.prefer_download %}checked{% endif %}>
                                                 Prefer downloaded copies
                                             </label>
-                                        {% else %}
+                                        {% elif entry.series.media_type.value == "ANIME" %}
                                             <label>
                                                 Current Ep
                                                 <input type="number" min="0" name="current_episode" value="{{ entry.current_episode or '' }}">
@@ -114,6 +126,7 @@
                                                 <input type="number" min="0" name="seasons_watched" value="{{ entry.seasons_watched or '' }}">
                                             </label>
                                         {% endif %}
+                                        {# MOVIE: only status, dates, and notes are tracked #}
                                         <label class="full">
                                             Notes
                                             <textarea name="notes" rows="2">{{ entry.notes or '' }}</textarea>
@@ -127,7 +140,7 @@
                                 </details>
                                 <details>
                                     <summary>Update Availability</summary>
-                                    <form method="post" action="{{ url_for('update_availability', entry_id=entry.id) }}" class="compact-form">
+                                    <form method="post" action="{{ url_for('entries.update_availability', entry_id=entry.id) }}" class="compact-form">
                                         <label>
                                             Release Status
                                             <select name="publication_status">
@@ -141,7 +154,7 @@
                                                 Latest Volume
                                                 <input type="number" min="0" name="latest_volume" value="{{ entry.series.latest_volume or '' }}">
                                             </label>
-                                        {% else %}
+                                        {% elif entry.series.media_type.value == "ANIME" %}
                                             <label>
                                                 Latest Episode
                                                 <input type="number" min="0" name="latest_episode" value="{{ entry.series.latest_episode or '' }}">
@@ -151,6 +164,7 @@
                                                 <input type="number" min="0" name="seasons_aired" value="{{ entry.series.seasons_aired or '' }}">
                                             </label>
                                         {% endif %}
+                                        {# MOVIE: release status only, no episode/volume fields #}
                                         <label class="full">
                                             Update Note
                                             <input type="text" name="availability_note" maxlength="500" placeholder="Optional release update note">
@@ -161,7 +175,7 @@
                                 {% if entry.series.media_type.value == "BOOK" %}
                                     <details>
                                         <summary>Log Download</summary>
-                                        <form method="post" action="{{ url_for('add_download_asset', entry_id=entry.id) }}" class="compact-form">
+                                        <form method="post" action="{{ url_for('entries.add_download_asset', entry_id=entry.id) }}" class="compact-form">
                                             <label>
                                                 Unit Type
                                                 <select name="unit_type">

@@ -3,7 +3,7 @@
 {% block content %}
 <section class="panel">
     <h2>History</h2>
-    <form method="get" action="{{ url_for('history') }}" class="inline-form">
+    <form method="get" action="{{ url_for('main.history') }}" class="inline-form">
         <label>
             Media
             <select name="media">
@@ -17,6 +17,15 @@
     </form>
 
     {% if events %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('main.history', page=pagination.prev_num, media=media_filter) }}">&larr; Prev</a>
+            {% endif %}
+            <span>Page {{ pagination.page }} / {{ pagination.pages }} &nbsp;({{ pagination.total }} events)</span>
+            {% if pagination.has_next %}
+                <a href="{{ url_for('main.history', page=pagination.next_num, media=media_filter) }}">Next &rarr;</a>
+            {% endif %}
+        </div>
         <div class="table-wrap">
             <table>
                 <thead>

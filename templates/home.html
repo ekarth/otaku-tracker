@@ -5,14 +5,14 @@
     <h2>Home</h2>
     <p>Use this tracker to manage manga, manhwa, light novels, and anime in one place.</p>
     <div class="inline-form">
-        <a href="{{ url_for('index') }}" class="btn">Go To Readlist</a>
-        <a href="{{ url_for('history') }}" class="btn secondary">View History</a>
+        <a href="{{ url_for('main.index') }}" class="btn">Go To Readlist</a>
+        <a href="{{ url_for('main.history') }}" class="btn secondary">View History</a>
     </div>
 </section>
 
 <section class="panel">
     <h2>Add To Tracker</h2>
-    <form method="post" action="{{ url_for('add_entry') }}" class="grid-form" id="add-form">
+    <form method="post" action="{{ url_for('entries.add_entry') }}" class="grid-form" id="add-form">
         <label>
             Japanese Title
             <input type="text" name="japanese_title" maxlength="255">
@@ -34,6 +34,15 @@
             <select name="book_type">
                 {% for book_type in add_book_types %}
                     <option value="{{ book_type }}">{{ book_type }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label id="parent_anime_wrap">
+            Part of Anime <span style="font-weight:normal;font-size:0.85em">(optional)</span>
+            <select name="parent_anime_id" id="parent_anime_id">
+                <option value="">— Standalone —</option>
+                {% for s in anime_series %}
+                    <option value="{{ s.id }}">{{ s.display_title }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -104,19 +113,24 @@
 <script>
     const mediaField = document.getElementById("media_type");
     const bookTypeWrap = document.getElementById("book_type_wrap");
+    const parentAnimeWrap = document.getElementById("parent_anime_wrap");
     const mediaFields = document.querySelectorAll(".media-field");
 
     function syncAddFormVisibility() {
         const isBook = mediaField.value === "BOOK";
-        bookTypeWrap.style.display = isBook ? "grid" : "none";
+        const isAnime = mediaField.value === "ANIME";
+        const isMovie = mediaField.value === "MOVIE";
 
-        const bookTypeSelect = bookTypeWrap.querySelector("select");
-        bookTypeSelect.disabled = !isBook;
+        bookTypeWrap.style.display = isBook ? "grid" : "none";
+        bookTypeWrap.querySelector("select").disabled = !isBook;
+
+        parentAnimeWrap.style.display = isMovie ? "grid" : "none";
+        parentAnimeWrap.querySelector("select").disabled = !isMovie;
 
         mediaFields.forEach((field) => {
             const volumeOnly = field.classList.contains("volume-only");
             const episodeOnly = field.classList.contains("episode-only");
-            const shouldShow = (isBook && volumeOnly) || (!isBook && episodeOnly);
+            const shouldShow = (isBook && volumeOnly) || (isAnime && episodeOnly);
 
             field.style.display = shouldShow ? "" : "none";
             const input = field.querySelector("input, select");
